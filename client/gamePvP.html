@@ -235,9 +235,9 @@
               </select>
               <button id="refresh-decks" class="btn btn-secondary">⟳</button>
             </div>
-            <button id="start-match" class="btn btn-success" disabled>Tìm đối thủ</button>
+            <button id="start-match" class="btn btn-success" disabled>Sẵn sàng</button>
             <div id="waiting-status" style="display:none;color:#94a3b8;font-size:14px;">
-              Đang tìm đối thủ<span class="waiting-indicator"></span>
+              Đang đợi đối thủ<span class="waiting-indicator"></span>
             </div>
           </div>
         </div>
@@ -553,13 +553,13 @@
         
         console.log("Emitting cardgame/join for PvP game");
         socket.emit("cardgame/join", {name, character, isBot: false, avatar: playerAvatar});
-        $("lobby-msg").textContent = "Đang tìm đối thủ...";
+        $("lobby-msg").textContent = "Đang đợi đối thủ...";
       };
       
       socket.on("cardgame/waiting",()=>{
         console.log("Received cardgame/waiting event");
         $("lobby-msg").textContent="Đang chờ người chơi khác...";
-        $("op-status").textContent = "Đang tìm đối thủ...";
+        $("op-status").textContent = "Đang đợi đối thủ...";
         addEventLog("Đang chờ đối thủ...");
       });
       
@@ -568,7 +568,7 @@
         
         // Stop searching
         isSearching = false;
-        $("start-match").textContent = "Tìm đối thủ";
+        $("start-match").textContent = "Sẵn sàng";
         $("waiting-status").style.display = "none";
         
         // Reset game state for new match

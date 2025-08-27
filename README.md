@@ -163,7 +163,8 @@ playCardSound("attack"); // Test SFX
 
 1. **Tạo tài khoản**: Đăng ký tại [railway.app](https://railway.app)
 2. **Deploy from GitHub**:
-   - Click "New Project" 
+
+   - Click "New Project"
    - Chọn "Deploy from GitHub repo"
    - Chọn repository `TouhouFM-Card-Battle`
    - Railway sẽ tự động deploy!

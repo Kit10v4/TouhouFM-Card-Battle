@@ -121,10 +121,6 @@ app.get('/main_menu.html', (req, res) => {
     res.sendFile(__dirname + '/client/main_menu.html');
 });
 
-app.get('/gamePlay.html', (req, res) => {
-    res.sendFile(__dirname + '/client/gamePlay.html');
-});
-
 app.get('/gameAI.html', (req, res) => {
     res.sendFile(__dirname + '/client/gameAI.html');
 });
