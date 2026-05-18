@@ -10,6 +10,25 @@ const { ping, pool } = require('./db');
 
 const PORT = process.env.PORT || 4000;
 const CLIENT_DIR = path.join(__dirname, '..', 'client');
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:4000',
+  'http://127.0.0.1:4000'
+];
+const ALLOWED_ORIGINS = new Set(
+  [
+    ...DEFAULT_ALLOWED_ORIGINS,
+    ...(process.env.CORS_ORIGINS || '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+  ]
+);
+
+function isOriginAllowed(origin) {
+  return !origin || ALLOWED_ORIGINS.has(origin);
+}
 
 // Test database connection
 (async () => {
@@ -22,13 +41,27 @@ const CLIENT_DIR = path.join(__dirname, '..', 'client');
 })();
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+  cors: {
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Socket origin not allowed'));
+    },
+    credentials: true
+  }
+});
 
 // ===== In-memory lobby state (simplified) =====
 const gameRooms = new Map(); // roomId -> roomData
 const playerRooms = new Map(); // socket.id -> roomId
 const playerSockets = new Map(); // playerId(username) -> socket.id
+const onlineUsers = new Set();
+const lastSeenMap = new Map();
 
 // ===== CARD GAME ENGINE (ported) =====
 const fs = require('fs');
@@ -126,10 +159,52 @@ function broadcastRoomList() {
   io.emit('roomList', Array.from(gameRooms.values()));
 }
 
+function getDefaultStats() {
+  return {
+    aiWins: 0,
+    aiLosses: 0,
+    aiDraws: 0,
+    onlineWins: 0,
+    onlineLosses: 0,
+    onlineDraws: 0
+  };
+}
+
+function markUserOnline(username) {
+  if (!username) return;
+  onlineUsers.add(username);
+  lastSeenMap.set(username, new Date().toISOString());
+}
+
+function markUserOffline(username) {
+  if (!username) return;
+  onlineUsers.delete(username);
+  lastSeenMap.set(username, new Date().toISOString());
+}
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP for development
 }));
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+
+  next();
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -162,6 +237,118 @@ app.use('/api', require('./routes/auth'));
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ success: true, status: 'OK', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/profile/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    if (!username) {
+      res.status(400).json({ success: false, message: 'Username is required' });
+      return;
+    }
+
+    await ensureAvatarColumn();
+    const [rows] = await pool.execute(
+      'SELECT username, email, avatar, created_at FROM users WHERE username = ? LIMIT 1',
+      [username]
+    );
+
+    if (rows.length === 0) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    const user = rows[0];
+    const isOnline = onlineUsers.has(user.username);
+    const lastSeen = isOnline
+      ? new Date().toISOString()
+      : lastSeenMap.get(user.username) || user.created_at;
+
+    res.json({
+      success: true,
+      profile: {
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar || '/assets/reimu2.png',
+        registeredAt: user.created_at,
+        isOnline,
+        lastSeen,
+        stats: getDefaultStats()
+      }
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to load profile' });
+  }
+});
+
+app.post('/api/user-profile', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) {
+      res.status(400).json({ success: false, message: 'Username is required' });
+      return;
+    }
+
+    await ensureAvatarColumn();
+    const [rows] = await pool.execute(
+      'SELECT username, email, avatar, created_at FROM users WHERE username = ? LIMIT 1',
+      [username]
+    );
+
+    if (rows.length === 0) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    const user = rows[0];
+    const isOnline = onlineUsers.has(user.username);
+    const lastSeen = isOnline
+      ? new Date().toISOString()
+      : lastSeenMap.get(user.username) || user.created_at;
+
+    res.json({
+      success: true,
+      user: {
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar || '/assets/reimu2.png',
+        registeredAt: user.created_at,
+        isOnline,
+        lastSeen,
+        stats: getDefaultStats()
+      }
+    });
+  } catch (error) {
+    console.error('Search profile error:', error);
+    res.status(500).json({ success: false, message: 'Failed to search profile' });
+  }
+});
+
+app.post('/api/update-avatar', async (req, res) => {
+  try {
+    const { username, avatar } = req.body;
+    if (!username || !avatar) {
+      res.status(400).json({ success: false, message: 'Username and avatar are required' });
+      return;
+    }
+
+    await ensureAvatarColumn();
+    const [updateResult] = await pool.execute(
+      'UPDATE users SET avatar = ? WHERE username = ?',
+      [avatar, username]
+    );
+
+    if (updateResult.affectedRows === 0) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    res.json({ success: true, message: 'Avatar updated successfully' });
+  } catch (error) {
+    console.error('Update avatar error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update avatar' });
+  }
 });
 
 // Ensure "avatar" column exists in users table (idempotent for dev convenience)
@@ -230,6 +417,13 @@ io.on('connection', (socket) => {
 
   // ===== CARD GAME EVENTS =====
   socket.data = { name: 'Player', character: 'Reimu' };
+  socket.on('userLogin', (username) => {
+    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
+    if (!normalizedUsername) return;
+    socket.data.username = normalizedUsername;
+    markUserOnline(normalizedUsername);
+  });
+
   socket.on('cardgame/join', ({ name, character, isBot, avatar }) => {
     console.log(`Card game join request: ${name}, ${character}, isBot: ${isBot}`);
     socket.data.name = name || 'Player';
@@ -330,6 +524,8 @@ io.on('connection', (socket) => {
         if (!hostPlayer.avatar) {
           hostPlayer.avatar = await getUserAvatar(hostPlayer.id);
         }
+        socket.data.username = hostPlayer.id;
+        markUserOnline(hostPlayer.id);
         playerSockets.set(hostPlayer.id, socket.id);
       }
       gameRooms.set(roomData.id, roomData);
@@ -359,6 +555,8 @@ io.on('connection', (socket) => {
         if (!hostPlayer.avatar) {
           hostPlayer.avatar = await getUserAvatar(hostPlayer.id);
         }
+        socket.data.username = hostPlayer.id;
+        markUserOnline(hostPlayer.id);
         playerSockets.set(hostPlayer.id, socket.id);
       }
       const lobbyRoom = {
@@ -409,6 +607,8 @@ io.on('connection', (socket) => {
       if (!player.avatar) {
         player.avatar = await getUserAvatar(player.id);
       }
+      socket.data.username = player.id;
+      markUserOnline(player.id);
       room.players.push(player);
       playerRooms.set(socket.id, roomId);
       playerSockets.set(player.id, socket.id);
@@ -499,6 +699,10 @@ io.on('connection', (socket) => {
   // Disconnect cleanup (lobby + card game)
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
+    if (socket.data?.username) {
+      markUserOffline(socket.data.username);
+      playerSockets.delete(socket.data.username);
+    }
     if(cardGameWaiting===socket.id) cardGameWaiting=null;
     const cgRoomId=[...socket.rooms].find(r=>r&& (r.startsWith('cardgame-')||r.startsWith('airoom-')));
     if(cgRoomId){ const room=cardGameRooms.get(cgRoomId); if(room){ io.to(cgRoomId).emit('cardgame/end',{ reason:'opponent_left' }); cardGameRooms.delete(cgRoomId); } }

@@ -4,6 +4,8 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Touhou FM: Battle Card - Đấu với Người</title>
+    <meta name="thfm-api-base" content="">
+    <meta name="thfm-socket-url" content="">
     <link rel="stylesheet" href="gameplay.css">
     <style>
     /* Game Result Overlay */
@@ -140,7 +142,8 @@
       100% { transform: rotate(360deg); }
     }
     </style>
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="./app-config.js"></script>
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
   <script src="/scripts/sound.js"></script>
   <script src="/scripts/bgm.js"></script>
   </head>
@@ -344,7 +347,9 @@
     </div>
 
     <script>
-      const socket = io();
+      const socket = window.THFM_CONFIG?.createSocket
+        ? window.THFM_CONFIG.createSocket()
+        : io();
       const rules = { HP_START:100, TURN_LIMIT:10, TURN_SECONDS:20, HAND_SIZE:5, DECK_MAX:15, TYPE_LIMIT:6 };
       const $ = id=>document.getElementById(id);
       const lobby=$("screen-lobby"), deck=$("screen-deck"), game=$("screen-game");

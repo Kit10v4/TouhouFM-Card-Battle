@@ -19,6 +19,17 @@ function generateVerifyCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+function getCookieConfig() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const sameSite = process.env.COOKIE_SAMESITE || (isProduction ? 'none' : 'lax');
+  const secure =
+    process.env.COOKIE_SECURE != null
+      ? process.env.COOKIE_SECURE === 'true'
+      : isProduction;
+
+  return { secure, sameSite };
+}
+
 // Send verification email
 async function sendVerificationEmail(email, code) {
   if (!emailConfig) {
@@ -186,10 +197,12 @@ router.post('/login', async (req, res) => {
     const token = signJwt({ userId: user.id });
 
     // Set HTTP-only cookie
+    const cookieConfig = getCookieConfig();
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: cookieConfig.secure,
+      sameSite: cookieConfig.sameSite,
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
@@ -212,7 +225,13 @@ router.post('/login', async (req, res) => {
 
 // POST /api/logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('token');
+  const cookieConfig = getCookieConfig();
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: cookieConfig.secure,
+    sameSite: cookieConfig.sameSite,
+    path: '/'
+  });
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
