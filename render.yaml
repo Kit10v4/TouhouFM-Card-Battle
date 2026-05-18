@@ -23,16 +23,9 @@ services:
         value: "true"
       - key: COOKIE_SAMESITE
         value: "none"
-      # Database (MySQL/PlanetScale)
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        value: "3306"
-      - key: DB_NAME
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
+      # Database (Neon PostgreSQL)
+      # Get connection string from: https://console.neon.tech
+      - key: DATABASE_URL
         sync: false
       # JWT
       - key: JWT_SECRET
