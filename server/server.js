@@ -67,13 +67,13 @@ const lastSeenMap = new Map();
 const fs = require('fs');
 let rules;
 try {
-  rules = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'rules.json')));
+  rules = JSON.parse(fs.readFileSync(path.join(__dirname, 'rules.json')));
 } catch (e) {
   console.warn('Could not load rules.json for card game, using defaults');
   rules = { HP_START:100, TURN_LIMIT:10, TURN_SECONDS:20, HAND_SIZE:5, DECK_MAX:15, TYPE_LIMIT:6, CARD_VALUES:{attack:30,defend:25,heal:35,curse:0}, SPECIALS:{ Reimu:{bonus:20}, Marisa:{bonus:25} }, CURSE:{ duration:3, hpDebuff:5, atkDebuff:5 } };
 }
 
-const { AIBotManager } = require('../bot.js');
+const { AIBotManager } = require('./bot.js');
 const aiManager = new AIBotManager();
 setInterval(()=> aiManager.cleanup(), 3600000);
 

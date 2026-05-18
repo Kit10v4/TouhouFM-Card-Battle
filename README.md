@@ -109,6 +109,8 @@ touhou-card-game/
 │   ├── db/               # Database setup
 │   ├── routes/           # API routes
 │   ├── utils/            # Utilities
+│   ├── bot.js            # AI bot engine
+│   ├── rules.json        # Card game rules
 │   └── server.js         # Main server
 └── package.json          # Dependencies
 ```
