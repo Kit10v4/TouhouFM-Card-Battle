@@ -147,7 +147,7 @@ function handleAITurn(room){ const aiBot=room.aiBot; if(!aiBot) return; const hu
 async function getUserAvatar(username) {
   try {
     await ensureAvatarColumn();
-    const [rows] = await pool.execute('SELECT avatar FROM users WHERE username = ? LIMIT 1', [username]);
+    const { rows } = await pool.query('SELECT avatar FROM users WHERE username = $1 LIMIT 1', [username]);
     if (rows.length && rows[0].avatar) return rows[0].avatar;
   } catch (e) {
     // ignore
@@ -248,8 +248,8 @@ app.get('/api/profile/:username', async (req, res) => {
     }
 
     await ensureAvatarColumn();
-    const [rows] = await pool.execute(
-      'SELECT username, email, avatar, created_at FROM users WHERE username = ? LIMIT 1',
+    const { rows } = await pool.query(
+      'SELECT username, email, avatar, created_at FROM users WHERE username = $1 LIMIT 1',
       [username]
     );
 
@@ -291,8 +291,8 @@ app.post('/api/user-profile', async (req, res) => {
     }
 
     await ensureAvatarColumn();
-    const [rows] = await pool.execute(
-      'SELECT username, email, avatar, created_at FROM users WHERE username = ? LIMIT 1',
+    const { rows } = await pool.query(
+      'SELECT username, email, avatar, created_at FROM users WHERE username = $1 LIMIT 1',
       [username]
     );
 
@@ -334,12 +334,12 @@ app.post('/api/update-avatar', async (req, res) => {
     }
 
     await ensureAvatarColumn();
-    const [updateResult] = await pool.execute(
-      'UPDATE users SET avatar = ? WHERE username = ?',
+    const updateResult = await pool.query(
+      'UPDATE users SET avatar = $1 WHERE username = $2',
       [avatar, username]
     );
 
-    if (updateResult.affectedRows === 0) {
+    if (updateResult.rowCount === 0) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
@@ -351,12 +351,14 @@ app.post('/api/update-avatar', async (req, res) => {
   }
 });
 
-// Ensure "avatar" column exists in users table (idempotent for dev convenience)
+// Ensure "avatar" column exists in users table (idempotent)
 async function ensureAvatarColumn() {
   try {
-    const [cols] = await pool.query("SHOW COLUMNS FROM users LIKE 'avatar'");
-    if (cols.length === 0) {
-      await pool.query("ALTER TABLE users ADD COLUMN avatar VARCHAR(255) NULL AFTER password_hash");
+    const { rows } = await pool.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='avatar'"
+    );
+    if (rows.length === 0) {
+      await pool.query("ALTER TABLE users ADD COLUMN avatar VARCHAR(255)");
       console.log('Added avatar column to users table');
     }
   } catch (e) {
@@ -376,15 +378,15 @@ app.post('/api/set-test-avatars', async (req, res) => {
 
     const updated = [];
     for (const [username, avatar] of Object.entries(testUsers)) {
-      const [updateRes] = await pool.execute('UPDATE users SET avatar = ? WHERE username = ?', [avatar, username]);
-      if (updateRes.affectedRows === 0) {
+      const updateRes = await pool.query('UPDATE users SET avatar = $1 WHERE username = $2', [avatar, username]);
+      if (updateRes.rowCount === 0) {
         // Insert user if missing (dev helper) with random password hash placeholder
         const placeholderPass = 'dev_placeholder';
-        await pool.execute('INSERT INTO users (email, username, password_hash, avatar) VALUES (?, ?, ?, ?)', [
+        await pool.query('INSERT INTO users (email, username, password_hash, avatar) VALUES ($1, $2, $3, $4)', [
           `${username}@example.dev`, username, placeholderPass, avatar
         ]).catch(()=>{});
-        const [secondUpdate] = await pool.execute('UPDATE users SET avatar = ? WHERE username = ?', [avatar, username]);
-        if (secondUpdate.affectedRows > 0) {
+        const secondUpdate = await pool.query('UPDATE users SET avatar = $1 WHERE username = $2', [avatar, username]);
+        if (secondUpdate.rowCount > 0) {
           updated.push(username);
           console.log(`Inserted & set avatar for ${username}: ${avatar}`);
         } else {

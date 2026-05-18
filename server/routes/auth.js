@@ -75,8 +75,8 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user already exists
-    const [existingUsers] = await pool.execute(
-      'SELECT id FROM users WHERE email = ? OR username = ?',
+    const { rows: existingUsers } = await pool.query(
+      'SELECT id FROM users WHERE email = $1 OR username = $2',
       [email, username]
     );
 
@@ -85,15 +85,15 @@ router.post('/register', async (req, res) => {
     }
 
     // Check pending users
-    const [pendingUsers] = await pool.execute(
-      'SELECT id FROM pending_users WHERE email = ? OR username = ?',
+    const { rows: pendingUsers } = await pool.query(
+      'SELECT id FROM pending_users WHERE email = $1 OR username = $2',
       [email, username]
     );
 
     if (pendingUsers.length > 0) {
       // Remove old pending registration
-      await pool.execute(
-        'DELETE FROM pending_users WHERE email = ? OR username = ?',
+      await pool.query(
+        'DELETE FROM pending_users WHERE email = $1 OR username = $2',
         [email, username]
       );
     }
@@ -104,8 +104,8 @@ router.post('/register', async (req, res) => {
     const expireAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Insert pending user
-    await pool.execute(
-      'INSERT INTO pending_users (email, username, password_hash, verify_code, expire_at) VALUES (?, ?, ?, ?, ?)',
+    await pool.query(
+      'INSERT INTO pending_users (email, username, password_hash, verify_code, expire_at) VALUES ($1, $2, $3, $4, $5)',
       [email, username, passwordHash, verifyCode, expireAt]
     );
 
@@ -135,8 +135,8 @@ router.post('/verify', async (req, res) => {
     }
 
     // Find pending user
-    const [pendingUsers] = await pool.execute(
-      'SELECT * FROM pending_users WHERE email = ? AND verify_code = ? AND expire_at > NOW()',
+    const { rows: pendingUsers } = await pool.query(
+      'SELECT * FROM pending_users WHERE email = $1 AND verify_code = $2 AND expire_at > NOW()',
       [email, code]
     );
 
@@ -147,14 +147,14 @@ router.post('/verify', async (req, res) => {
     const pendingUser = pendingUsers[0];
 
     // Create actual user
-    await pool.execute(
-      'INSERT INTO users (email, username, password_hash) VALUES (?, ?, ?)',
+    await pool.query(
+      'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3)',
       [pendingUser.email, pendingUser.username, pendingUser.password_hash]
     );
 
     // Remove pending user
-    await pool.execute(
-      'DELETE FROM pending_users WHERE id = ?',
+    await pool.query(
+      'DELETE FROM pending_users WHERE id = $1',
       [pendingUser.id]
     );
 
@@ -176,8 +176,8 @@ router.post('/login', async (req, res) => {
     }
 
     // Find user by username or email
-    const [users] = await pool.execute(
-      'SELECT * FROM users WHERE username = ? OR email = ?',
+    const { rows: users } = await pool.query(
+      'SELECT * FROM users WHERE username = $1 OR email = $2',
       [username, username]
     );
 
@@ -254,8 +254,8 @@ function requireAuth(req, res, next) {
 // GET /api/me
 router.get('/me', requireAuth, async (req, res) => {
   try {
-    const [users] = await pool.execute(
-      'SELECT id, username, email, created_at FROM users WHERE id = ?',
+    const { rows: users } = await pool.query(
+      'SELECT id, username, email, created_at FROM users WHERE id = $1',
       [req.userId]
     );
 

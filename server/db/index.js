@@ -1,25 +1,18 @@
 require('dotenv').config();
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'cardgame',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 async function ping() {
+  const client = await pool.connect();
   try {
-    const connection = await pool.getConnection();
-    await connection.ping();
-    connection.release();
+    await client.query('SELECT 1');
     return true;
-  } catch (error) {
-    throw error;
+  } finally {
+    client.release();
   }
 }
 
