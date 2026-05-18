@@ -10,6 +10,7 @@
     "start": "node server/server.js",
     "dev": "nodemon server/server.js",
     "db:migrate": "node server/db/migrate.js",
+    "test:api": "node server/test-api.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Kit10v4",
