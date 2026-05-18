@@ -14,10 +14,10 @@ const limiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
-const { AIBot, AIBotManager } = require('./bot.js');
+const { AIBot, AIBotManager } = require('../bot.js');
 
 // Game rules for card game
-const rules = JSON.parse(fs.readFileSync(path.join(__dirname, 'rules.json')));
+const rules = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'rules.json')));
 
 // Development vs Production logging
 const isDevelopment = process.env.NODE_ENV !== 'production';
@@ -65,8 +65,8 @@ app.use('/api/', apiLimiter);
 
 // SSL Configuration
 const sslOptions = {
-    key: fs.readFileSync('key.pem'),
-    cert: fs.readFileSync('cert.pem')
+    key: fs.readFileSync(path.join(__dirname, 'key.pem')),
+    cert: fs.readFileSync(path.join(__dirname, 'cert.pem'))
 };
 
 const server = https.createServer(sslOptions, app);
@@ -81,8 +81,8 @@ const io = new Server(server, {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(express.static(path.join(__dirname, 'client')));
-app.use('/assets', express.static(path.join(__dirname, 'client/assets')));
+app.use(express.static(path.join(__dirname, '..', '..', 'client')));
+app.use('/assets', express.static(path.join(__dirname, '..', '..', 'client', 'assets')));
 
 // Game rooms storage
 const gameRooms = new Map();

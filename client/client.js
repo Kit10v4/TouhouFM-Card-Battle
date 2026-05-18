@@ -2,7 +2,9 @@
 let socket;
 try {
   if (typeof io !== 'undefined') {
-    socket = io();
+    socket = window.THFM_CONFIG?.createSocket
+      ? window.THFM_CONFIG.createSocket()
+      : io();
   } else {
     console.log('Socket.IO not loaded, some features may not work');
   }
