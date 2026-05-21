@@ -109,6 +109,8 @@ touhou-card-game/
 │   ├── db/               # Database setup
 │   ├── routes/           # API routes
 │   ├── utils/            # Utilities
+│   ├── bot.js            # AI bot engine
+│   ├── rules.json        # Card game rules
 │   └── server.js         # Main server
 └── package.json          # Dependencies
 ```
@@ -159,28 +161,39 @@ playCardSound("attack"); // Test SFX
 
 ## 🌐 Deploy Online
 
-### Railway (Miễn phí & Dễ dàng)
+### Mô hình khuyến nghị: Vercel (Client) + Render (Server)
 
-1. **Tạo tài khoản**: Đăng ký tại [railway.app](https://railway.app)
-2. **Deploy from GitHub**:
+#### 1) Deploy server lên Render
 
-   - Click "New Project"
-   - Chọn "Deploy from GitHub repo"
-   - Chọn repository `TouhouFM-Card-Battle`
-   - Railway sẽ tự động deploy!
-
-3. **Custom domain** (optional):
-   - Vào Settings → Domains
-   - Thêm custom domain hoặc dùng `.railway.app` domain
-
-### Render (Alternative)
-
-1. Đăng ký tại [render.com](https://render.com)
-2. New → Web Service
-3. Connect GitHub repository
-4. Deploy settings:
+1. Đăng ký tại [render.com](https://render.com), tạo **Web Service** từ repo này.
+2. Cấu hình service:
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
+3. Cấu hình environment variables trên Render:
+   - `NODE_ENV=production`
+   - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+   - `JWT_SECRET`
+   - `CORS_ORIGINS=https://<your-vercel-domain>.vercel.app`
+   - `COOKIE_SECURE=true`
+   - `COOKIE_SAMESITE=none`
+4. Sau khi deploy thành công, ghi lại URL backend Render (ví dụ: `https://thfm-api.onrender.com`).
+
+#### 2) Deploy client lên Vercel
+
+1. Tạo project trên [vercel.com](https://vercel.com) từ cùng repo này.
+2. Trong Vercel Project Settings, đặt **Root Directory** là `client`.
+3. Mở các file client (`index.html`, `main_menu.html`, `gamePvP.html`, `gameAI.html`) và điền:
+   - `<meta name="thfm-api-base" content="https://<your-render-domain>.onrender.com">`
+   - `<meta name="thfm-socket-url" content="https://<your-render-domain>.onrender.com">`
+4. Deploy lại Vercel sau khi cập nhật domain.
+
+#### 3) Ghi chú quan trọng
+
+- Client đã được tách cấu hình qua `client/app-config.js`:
+  - Tự map API `/api/*` sang `thfm-api-base`.
+  - Tự bật `credentials: "include"` cho API auth.
+  - Socket.IO tự kết nối qua `thfm-socket-url`.
+- Nếu chưa set meta domain, app sẽ fallback về same-origin (phù hợp chạy local).
 
 ### Heroku (Có phí)
 

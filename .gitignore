@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 .env
 email-config.js
+# Runtime SQLite session file (if used)
+*.session.sql
+server/legacy/

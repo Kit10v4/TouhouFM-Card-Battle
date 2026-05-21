@@ -42,11 +42,11 @@ Hệ thống có thể tự động điều chỉnh độ khó dựa trên thàn
 
 ### Files chính
 
-- `bot.js`: Chứa logic AI chính
+- `server/bot.js`: Chứa logic AI chính
   - `AIBot`: Class đại diện cho một AI bot
   - `AIBotManager`: Quản lý nhiều AI bots
-- `index.js`: Server integration, xử lý AI rooms
-- `main_menu.js`: Client-side logic cho việc tạo phòng AI
+- `server/server.js`: Server integration, xử lý AI rooms
+- `client/main_menu.js`: Client-side logic cho việc tạo phòng AI
 
 ### AI Decision Making Process
 
@@ -126,8 +126,8 @@ AI có thời gian "suy nghĩ" khác nhau theo độ khó:
 
 ### AI không hoạt động
 
-- Kiểm tra file `rules.json` có tồn tại không
-- Đảm bảo `bot.js` được import đúng cách trong `index.js`
+- Kiểm tra file `server/rules.json` có tồn tại không
+- Đảm bảo `server/bot.js` được import đúng cách trong `server/server.js`
 
 ### AI chơi quá dễ/khó
 

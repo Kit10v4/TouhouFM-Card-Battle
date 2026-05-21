@@ -1,0 +1,45 @@
+# Render deployment configuration
+# Docs: https://render.com/docs/yaml-spec
+
+services:
+  - type: web
+    name: touhouFM-server
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      # CORS - set to your Vercel client URL, e.g.: https://your-app.vercel.app
+      - key: CORS_ORIGINS
+        sync: false
+      # Cookie settings for cross-domain (Vercel <-> Render)
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAMESITE
+        value: "none"
+      # Database (Neon PostgreSQL)
+      # Get connection string from: https://console.neon.tech
+      - key: DATABASE_URL
+        sync: false
+      # JWT
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: "7d"
+      # Email (nodemailer)
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
