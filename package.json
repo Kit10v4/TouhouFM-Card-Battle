@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "server/server.js",
   "engines": {
-    "node": ">=14.0.0",
-    "npm": ">=6.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "scripts": {
     "start": "node server/server.js",
@@ -24,11 +24,11 @@
     "express-rate-limit": "^8.0.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mysql2": "^3.14.3",
     "pg": "^8.13.3",
-    "ngrok": "^5.0.0-beta.2",
-    "nodemailer": "^7.0.5",
-    "nodemon": "^3.1.10",
+    "nodemailer": "^8.0.7",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }

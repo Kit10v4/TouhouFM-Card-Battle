@@ -6,12 +6,29 @@ const nodemailer = require('nodemailer');
 
 const router = express.Router();
 
-// Load email config
+// Load email config.
+// Priority: environment variables (Render/Vercel) -> local email-config.js (dev).
 let emailConfig;
-try {
-  emailConfig = require('../../email-config.js');
-} catch (error) {
-  console.warn('Email config not found, email features disabled');
+let emailFrom;
+if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  const port = Number(process.env.EMAIL_PORT) || 587;
+  emailConfig = {
+    host: process.env.EMAIL_HOST,
+    port,
+    secure: port === 465, // true for 465 (SMTPS), false for 587 (STARTTLS)
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  };
+  emailFrom = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+} else {
+  try {
+    emailConfig = require('../../email-config.js');
+    emailFrom = emailConfig.auth?.user;
+  } catch (error) {
+    console.warn('Email config not found, email features disabled');
+  }
 }
 
 // Generate 6-digit verification code
@@ -38,9 +55,9 @@ async function sendVerificationEmail(email, code) {
   }
 
   const transporter = nodemailer.createTransport(emailConfig);
-  
+
   await transporter.sendMail({
-    from: emailConfig.auth.user,
+    from: emailFrom,
     to: email,
     subject: 'Game Account Verification',
     html: `

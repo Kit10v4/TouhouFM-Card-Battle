@@ -8,12 +8,20 @@
   const apiFromMeta = document.querySelector('meta[name="thfm-api-base"]')?.content;
   const socketFromMeta = document.querySelector('meta[name="thfm-socket-url"]')?.content;
 
-  const apiBaseUrl = normalizeUrl(
-    globalConfig.apiBaseUrl || apiFromMeta || localStorage.getItem('THFM_API_BASE_URL') || ''
-  );
-  const socketUrl = normalizeUrl(
-    globalConfig.socketUrl || socketFromMeta || localStorage.getItem('THFM_SOCKET_URL') || apiBaseUrl
-  );
+  // When served from localhost (server also serves the client during dev),
+  // always use same-origin so the hardcoded production URL doesn't break local dev.
+  const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+
+  const apiBaseUrl = isLocalHost
+    ? ''
+    : normalizeUrl(
+        globalConfig.apiBaseUrl || apiFromMeta || localStorage.getItem('THFM_API_BASE_URL') || ''
+      );
+  const socketUrl = isLocalHost
+    ? ''
+    : normalizeUrl(
+        globalConfig.socketUrl || socketFromMeta || localStorage.getItem('THFM_SOCKET_URL') || apiBaseUrl
+      );
 
   function resolveApiUrl(input) {
     if (typeof input !== 'string' || !input.startsWith('/api/')) return input;
