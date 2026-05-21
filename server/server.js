@@ -233,7 +233,7 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many auth attempts' }
 });
 app.use('/api/register', authLimiter);
-app.use('/api/verify', authLimiter);
+app.use('/api/reset-password', authLimiter);
 app.use('/api/login', authLimiter);
 
 // Body parser and cookies

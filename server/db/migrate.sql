@@ -5,10 +5,13 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(191) NOT NULL UNIQUE,
     username VARCHAR(191) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    security_key_hash VARCHAR(255),
     avatar VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+-- Idempotent for databases created before security_key_hash existed
+ALTER TABLE users ADD COLUMN IF NOT EXISTS security_key_hash VARCHAR(255);
 CREATE TABLE IF NOT EXISTS pending_users (
     id BIGSERIAL PRIMARY KEY,
     email VARCHAR(191) NOT NULL UNIQUE,

@@ -1,39 +1,22 @@
 const express = require('express');
+const crypto = require('crypto');
 const { pool } = require('../db');
 const { hashPassword, comparePassword } = require('../utils/password');
 const { signJwt, verifyJwt } = require('../utils/jwt');
-const nodemailer = require('nodemailer');
 
 const router = express.Router();
 
-// Load email config.
-// Priority: environment variables (Render/Vercel) -> local email-config.js (dev).
-let emailConfig;
-let emailFrom;
-if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  const port = Number(process.env.EMAIL_PORT) || 587;
-  emailConfig = {
-    host: process.env.EMAIL_HOST,
-    port,
-    secure: port === 465, // true for 465 (SMTPS), false for 587 (STARTTLS)
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  };
-  emailFrom = process.env.EMAIL_FROM || process.env.EMAIL_USER;
-} else {
-  try {
-    emailConfig = require('../../email-config.js');
-    emailFrom = emailConfig.auth?.user;
-  } catch (error) {
-    console.warn('Email config not found, email features disabled');
+// 8-character security key shown once at registration. Used instead of email
+// to reset the password later (Render free tier blocks outbound SMTP).
+// Charset excludes ambiguous chars (0/O/1/I/L) for easier manual entry.
+const KEY_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function generateSecurityKey() {
+  const bytes = crypto.randomBytes(8);
+  let key = '';
+  for (let i = 0; i < 8; i++) {
+    key += KEY_CHARSET[bytes[i] % KEY_CHARSET.length];
   }
-}
-
-// Generate 6-digit verification code
-function generateVerifyCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return key;
 }
 
 function getCookieConfig() {
@@ -47,28 +30,9 @@ function getCookieConfig() {
   return { secure, sameSite };
 }
 
-// Send verification email
-async function sendVerificationEmail(email, code) {
-  if (!emailConfig) {
-    console.log(`[DEV] Verification code for ${email}: ${code}`);
-    return;
-  }
-
-  const transporter = nodemailer.createTransport(emailConfig);
-
-  await transporter.sendMail({
-    from: emailFrom,
-    to: email,
-    subject: 'Game Account Verification',
-    html: `
-      <h2>Welcome to Game!</h2>
-      <p>Your verification code is: <strong>${code}</strong></p>
-      <p>This code will expire in 10 minutes.</p>
-    `
-  });
-}
-
 // POST /api/register
+// Creates the account immediately (no email verification) and returns a
+// one-time security key. The client must show it to the user to save.
 router.post('/register', async (req, res) => {
   try {
     const { username, password, email } = req.body;
@@ -101,40 +65,21 @@ router.post('/register', async (req, res) => {
       return res.json({ success: false, message: 'Email or username already exists' });
     }
 
-    // Check pending users
-    const { rows: pendingUsers } = await pool.query(
-      'SELECT id FROM pending_users WHERE email = $1 OR username = $2',
-      [email, username]
-    );
-
-    if (pendingUsers.length > 0) {
-      // Remove old pending registration
-      await pool.query(
-        'DELETE FROM pending_users WHERE email = $1 OR username = $2',
-        [email, username]
-      );
-    }
-
-    // Hash password and generate code
+    // Hash password, generate + hash the security key
     const passwordHash = await hashPassword(password);
-    const verifyCode = generateVerifyCode();
-    const expireAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const securityKey = generateSecurityKey();
+    const securityKeyHash = await hashPassword(securityKey);
 
-    // Insert pending user
     await pool.query(
-      'INSERT INTO pending_users (email, username, password_hash, verify_code, expire_at) VALUES ($1, $2, $3, $4, $5)',
-      [email, username, passwordHash, verifyCode, expireAt]
+      'INSERT INTO users (email, username, password_hash, security_key_hash) VALUES ($1, $2, $3, $4)',
+      [email, username, passwordHash, securityKeyHash]
     );
 
-    // Send verification email
-    try {
-      await sendVerificationEmail(email, verifyCode);
-    } catch (emailError) {
-      console.error('Email send failed:', emailError);
-      // Continue anyway for dev purposes
-    }
-
-    res.json({ success: true, message: 'Verification code sent to email' });
+    res.json({
+      success: true,
+      message: 'Account created. Save your security key to recover your password.',
+      securityKey
+    });
 
   } catch (error) {
     console.error('Register error:', error);
@@ -142,44 +87,52 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /api/verify
-router.post('/verify', async (req, res) => {
+// POST /api/reset-password
+// Reset the password using the username + the security key issued at registration.
+router.post('/reset-password', async (req, res) => {
   try {
-    const { email, code } = req.body;
+    const { username, securityKey, newPassword } = req.body;
 
-    if (!email || !code) {
-      return res.json({ success: false, message: 'Email and code required' });
+    if (!username || !securityKey || !newPassword) {
+      return res.json({ success: false, message: 'Username, security key and new password required' });
     }
 
-    // Find pending user
-    const { rows: pendingUsers } = await pool.query(
-      'SELECT * FROM pending_users WHERE email = $1 AND verify_code = $2 AND expire_at > NOW()',
-      [email, code]
-    );
-
-    if (pendingUsers.length === 0) {
-      return res.json({ success: false, message: 'Invalid or expired verification code' });
+    if (newPassword.length < 6) {
+      return res.json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    const pendingUser = pendingUsers[0];
-
-    // Create actual user
-    await pool.query(
-      'INSERT INTO users (email, username, password_hash) VALUES ($1, $2, $3)',
-      [pendingUser.email, pendingUser.username, pendingUser.password_hash]
+    // Find user by username or email
+    const { rows: users } = await pool.query(
+      'SELECT * FROM users WHERE username = $1 OR email = $1',
+      [username]
     );
 
-    // Remove pending user
+    if (users.length === 0) {
+      return res.json({ success: false, message: 'Invalid username or security key' });
+    }
+
+    const user = users[0];
+
+    if (!user.security_key_hash) {
+      return res.json({ success: false, message: 'This account has no security key on file' });
+    }
+
+    const keyValid = await comparePassword(securityKey.trim().toUpperCase(), user.security_key_hash);
+    if (!keyValid) {
+      return res.json({ success: false, message: 'Invalid username or security key' });
+    }
+
+    const newHash = await hashPassword(newPassword);
     await pool.query(
-      'DELETE FROM pending_users WHERE id = $1',
-      [pendingUser.id]
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [newHash, user.id]
     );
 
-    res.json({ success: true, message: 'Account verified successfully' });
+    res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
 
   } catch (error) {
-    console.error('Verify error:', error);
-    res.json({ success: false, message: 'Verification failed' });
+    console.error('Reset password error:', error);
+    res.json({ success: false, message: 'Password reset failed' });
   }
 });
 

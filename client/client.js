@@ -15,13 +15,13 @@ try {
 function hideAllBoxes() {
 	const loginBox = document.getElementById('login');
 	const registerBox = document.getElementById('Register');
-	const verificationBox = document.getElementById('Verification');
+	const securityKeyBox = document.getElementById('SecurityKey');
 	const forgotPasswordBox = document.getElementById('Forgot-Password');
 	const loggedInBox = document.getElementById('logged-in');
-	
+
 	if (loginBox) loginBox.style.display = 'none';
 	if (registerBox) registerBox.style.display = 'none';
-	if (verificationBox) verificationBox.style.display = 'none';
+	if (securityKeyBox) securityKeyBox.style.display = 'none';
 	if (forgotPasswordBox) forgotPasswordBox.style.display = 'none';
 	if (loggedInBox) loggedInBox.style.display = 'none';
 }
@@ -44,15 +44,6 @@ function showBox(boxId) {
 		console.log('❌ Element not found with ID:', boxId);
 	}
 	
-	if (boxId === 'Verification') {
-		const email = sessionStorage.getItem('registrationEmail');
-		if (email) {
-			const descText = document.querySelector('#Verification .desc-txt');
-			if (descText) {
-				descText.innerHTML = `Mã xác thực đã được gửi đến <strong>${email}</strong>.<br>Vui lòng kiểm tra hộp thư và nhập mã 6 số bên dưới:`;
-			}
-		}
-	}
 }
 
 function showMessage(message, isError = false) {
@@ -152,12 +143,6 @@ if (registerBtn) {
         registerBtn.style.opacity = '0.6';
 
         try {
-            showMessage('Đang gửi mã xác thực đến email...', false);
-            
-            sessionStorage.setItem('registrationEmail', email);
-            sessionStorage.setItem('pendingRegistration', JSON.stringify({ username, password, email }));
-            showBox('Verification');
-            
             const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: {
@@ -169,22 +154,25 @@ if (registerBtn) {
             // Check if response is JSON or HTML
             const contentType = response.headers.get('content-type');
             let data;
-            
+
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else {
                 // If it's HTML (rate limit page), treat as error
                 const text = await response.text();
-                data = { 
-                    success: false, 
+                data = {
+                    success: false,
                     message: response.status === 429 ? 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút.' : 'Có lỗi xảy ra từ server.'
                 };
             }
 
-            if (data.success) {
-                showMessage('Mã xác thực đã được gửi đến email của bạn!');
+            if (data.success && data.securityKey) {
+                const keyDisplay = document.querySelector('.security-key-display');
+                if (keyDisplay) keyDisplay.textContent = data.securityKey;
+                showBox('SecurityKey');
+                showMessage('Tạo tài khoản thành công! Hãy lưu key bảo mật.');
             } else {
-                showMessage(data.message, true);
+                showMessage(data.message || 'Đăng ký thất bại', true);
                 showBox('Register');
             }
         } catch (error) {
@@ -199,74 +187,85 @@ if (registerBtn) {
     };
 }
 
-const verifyBtn = document.querySelector('.verify-btn');
-if (verifyBtn) {
-    verifyBtn.onclick = async function(e) {
-        e.preventDefault();
-        
-        const codeField = document.querySelector('.verification-txt');
-        if (!codeField) {
-            showMessage('Không thể tìm thấy trường nhập mã xác thực', true);
-            return;
-        }
-        
-        const code = codeField.value.trim();
-        
-        if (!code) {
-            showMessage('Vui lòng nhập mã xác thực', true);
-            return;
-        }
-        
-        const email = sessionStorage.getItem('registrationEmail');
-        if (!email) {
-            showMessage('Không tìm thấy thông tin đăng ký', true);
-            showBox('Register');
-            return;
-        }
-        
-        const verifyBtn = this;
-        const originalText = verifyBtn.value;
-        verifyBtn.disabled = true;
-        verifyBtn.value = 'Đang xử lý...';
-        verifyBtn.style.opacity = '0.6';
-        
+// Security key screen: copy + continue to login
+const copyKeyBtn = document.querySelector('.copy-key-btn');
+if (copyKeyBtn) {
+    copyKeyBtn.onclick = async function() {
+        const key = document.querySelector('.security-key-display')?.textContent?.trim();
+        if (!key) return;
         try {
-            const response = await fetch('/api/verify', {
+            await navigator.clipboard.writeText(key);
+            showMessage('Đã sao chép key bảo mật');
+        } catch (error) {
+            showMessage('Không thể sao chép tự động, hãy chép tay key', true);
+        }
+    };
+}
+
+const keySavedBtn = document.querySelector('.key-saved-btn');
+if (keySavedBtn) {
+    keySavedBtn.onclick = function(e) {
+        e.preventDefault();
+        showBox('login');
+    };
+}
+
+// Forgot password: reset using username + security key + new password
+const resetPasswordBtn = document.querySelector('.reset-password-btn');
+if (resetPasswordBtn) {
+    resetPasswordBtn.onclick = async function(e) {
+        e.preventDefault();
+
+        const username = document.querySelector('.reset-username-txt')?.value.trim();
+        const securityKey = document.querySelector('.reset-key-txt')?.value.trim();
+        const newPassword = document.querySelector('.reset-newpass-txt')?.value.trim();
+
+        if (!username || !securityKey || !newPassword) {
+            showMessage('Vui lòng điền đầy đủ thông tin', true);
+            return;
+        }
+        if (newPassword.length < 6) {
+            showMessage('Mật khẩu mới phải có ít nhất 6 ký tự', true);
+            return;
+        }
+
+        const btn = this;
+        const originalText = btn.value;
+        btn.disabled = true;
+        btn.value = 'Đang xử lý...';
+        btn.style.opacity = '0.6';
+
+        try {
+            const response = await fetch('/api/reset-password', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email, code })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, securityKey, newPassword })
             });
-            
+
             const contentType = response.headers.get('content-type');
             let data;
-            
             if (contentType && contentType.includes('application/json')) {
                 data = await response.json();
             } else {
-                const text = await response.text();
-                data = { 
-                    success: false, 
+                data = {
+                    success: false,
                     message: response.status === 429 ? 'Quá nhiều yêu cầu, vui lòng thử lại sau ít phút.' : 'Có lỗi xảy ra từ server.'
                 };
             }
-            
+
             if (data.success) {
-                showMessage('Đăng ký thành công! Bạn có thể đăng nhập ngay bây giờ.');
-                sessionStorage.removeItem('registrationEmail');
-                sessionStorage.removeItem('pendingRegistration');
+                showMessage('Đặt lại mật khẩu thành công! Hãy đăng nhập.');
                 showBox('login');
             } else {
                 showMessage(data.message, true);
             }
         } catch (error) {
-            console.error('Verification error:', error);
+            console.error('Reset password error:', error);
             showMessage('Có lỗi xảy ra, vui lòng thử lại', true);
         } finally {
-            verifyBtn.disabled = false;
-            verifyBtn.value = originalText;
-            verifyBtn.style.opacity = '1';
+            btn.disabled = false;
+            btn.value = originalText;
+            btn.style.opacity = '1';
         }
     };
 }

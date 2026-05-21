@@ -83,31 +83,38 @@
             </div>
          </div>
 
-         <div id="Verification" style="display: none;">
+         <div id="SecurityKey" style="display: none;">
             <div class="background"></div>
             <div class="verification-info">
-                <span class="desc-txt">Mã xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư và nhập mã bên dưới:</span>
+                <span class="desc-txt">Tài khoản đã được tạo! Đây là <strong>KEY BẢO MẬT</strong> dùng để khôi phục mật khẩu. Hãy lưu lại cẩn thận — key này chỉ hiển thị một lần.</span>
             </div>
-            <div class="verification-row">
-                <span class="verification-lb">MÃ XÁC THỰC</span>
-                <input class="verification-txt" type="text" maxlength="6">
+            <div class="security-key-row">
+                <span class="security-key-display"></span>
             </div>
             <div class="back-verify-row">
-                <span class="back-btn">Quay lại</span>
-                <input class="verify-btn" type="submit" value="Xác thực">
+                <span class="copy-key-btn">Sao chép</span>
+                <input class="key-saved-btn" type="submit" value="Tôi đã lưu, đăng nhập">
             </div>
         </div>
 
           <div id="Forgot-Password">
             <div class="background"></div>
-            <span class="desc-txt">Nhập email mà bạn từng đăng kí. Sẽ có một e-mail gửi về với link để reset lại mật khẩu của bạn</span>
-            <div class="email-row">
-                <span class="email-lb">Email</span>
-                <input class="email-txt" type="text">
+            <span class="desc-txt">Nhập tài khoản, key bảo mật (8 ký tự nhận khi đăng ký) và mật khẩu mới để đặt lại.</span>
+            <div class="username-row">
+                <span class="username-lb">TÀI KHOẢN</span>
+                <input class="reset-username-txt" type="text" maxlength="15" autocomplete="off" data-lpignore="true">
+            </div>
+            <div class="password-row">
+                <span class="password-lb">KEY BẢO MẬT</span>
+                <input class="reset-key-txt" type="text" maxlength="8" autocomplete="off" data-lpignore="true">
+            </div>
+            <div class="password-row">
+                <span class="password-lb">MẬT KHẨU MỚI</span>
+                <input class="reset-newpass-txt" type="password" maxlength="15" autocomplete="new-password" data-lpignore="true">
             </div>
             <div class="back-reset-row">
                 <span class="back-btn">Quay lại</span>
-                <input class="reset-password-btn" type="submit" value="Reset">
+                <input class="reset-password-btn" type="submit" value="Đặt lại">
             </div>
         </div>
 

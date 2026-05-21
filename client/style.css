@@ -42,7 +42,7 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
 }
 
 
-#login, #Register, #Verification, #Forgot-Password, #logged-in {
+#login, #Register, #SecurityKey, #Forgot-Password, #logged-in {
     position: fixed;
     left: 30px;
     bottom: 40px;
@@ -57,13 +57,13 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
     z-index: 10;
 }
 
-#Register, #Verification, #Forgot-Password, #logged-in {
+#Register, #SecurityKey, #Forgot-Password, #logged-in {
     display: none;
 }
 
 #login span:not(.username-lb,.password-lb, .email-lb),
 #Register span:not(.username-lb,.password-lb, .email-lb),
-#Verification span:not(.verification-lb),
+#SecurityKey span:not(.verification-lb),
 #Forgot-Password span:not(.username-lb,.password-lb, .email-lb) {
     margin-bottom: 8px;
     font-weight: 500;
@@ -79,7 +79,7 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
 #Register input[type="text"],
 #Register input[type="password"],
 #Register input[type="email"],
-#Verification input[type="text"],
+#SecurityKey input[type="text"],
 #Forgot-Password input[type="text"] {
     padding: 6px 10px;
     font-size: 16px;
@@ -139,7 +139,7 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
 
 #login input[type="submit"],
 #Register input[type="submit"],
-#Verification input[type="submit"],
+#SecurityKey input[type="submit"],
 #Forgot-Password input[type="submit"] {
     width: 100px;
     padding: 8px 0;
@@ -170,7 +170,7 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
 #login .register-lb,
 #login .forgot-password-lb,
 #Register .back-btn,
-#Verification .back-btn,
+#SecurityKey .back-btn,
 #Forgot-Password .back-btn {
     text-decoration: underline;
     cursor: pointer;
@@ -297,30 +297,30 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
     user-select: none;
 }
 
-#Verification .verification-info {
+#SecurityKey .verification-info {
     margin-bottom: 15px;
 }
 
-#Verification .desc-txt {
+#SecurityKey .desc-txt {
     font-size: 14px;
     line-height: 1.4;
     display: block;
     margin-bottom: 15px;
 }
 
-#Verification .verification-row {
+#SecurityKey .verification-row {
     display: flex;
     align-items: center;
     gap: 5px;
     margin-bottom: 15px;
 }
 
-#Verification .verification-lb {
+#SecurityKey .verification-lb {
     width: 40%;
     display: inline-block;
 }
 
-#Verification .verification-txt {
+#SecurityKey .verification-txt {
     width: 150px;
     height: 25px;
     box-sizing: border-box;
@@ -330,13 +330,13 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
     letter-spacing: 2px;
 }
 
-#Verification .back-verify-row {
+#SecurityKey .back-verify-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
-#Verification .verify-btn {
+#SecurityKey .verify-btn {
     margin-left: auto;
     display: block;
     margin-right: 25px;
@@ -353,12 +353,12 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
     transition: background 0.2s, opacity 0.2s;
 }
 
-#Verification .verify-btn:disabled {
+#SecurityKey .verify-btn:disabled {
     cursor: not-allowed;
     background-color: #a0a0a0;
 }
 
-#Verification .verify-btn:hover:not(:disabled) {
+#SecurityKey .verify-btn:hover:not(:disabled) {
     background-color: #c5b8b8;
 }
 
@@ -794,4 +794,60 @@ button, input[type="button"], input[type="submit"], [onclick], .clickable {
         flex-direction: column;
         gap: 10px;
     }
+}
+
+/* ===== Security key + password reset (replaces email verification) ===== */
+#SecurityKey, #Forgot-Password {
+    height: auto;
+    min-height: 240px;
+    padding-bottom: 15px;
+}
+
+.security-key-row {
+    display: flex;
+    justify-content: center;
+    margin: 6px 0 16px;
+}
+
+.security-key-display {
+    font-family: monospace;
+    font-size: 28px;
+    letter-spacing: 6px;
+    font-weight: 700;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 10px 18px;
+    border-radius: 8px;
+    user-select: all;
+    -webkit-user-select: all;
+}
+
+.copy-key-btn {
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 15px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#Forgot-Password .username-row,
+#Forgot-Password .password-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 10px;
+}
+
+#Forgot-Password .username-lb,
+#Forgot-Password .password-lb {
+    width: 40%;
+    display: inline-block;
+}
+
+#Forgot-Password input[type="password"] {
+    width: 150px;
+    height: 25px;
+    box-sizing: border-box;
+    padding: 6px 10px;
+    font-size: 16px;
 }
