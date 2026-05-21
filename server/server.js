@@ -16,18 +16,30 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:4000',
   'http://127.0.0.1:4000'
 ];
-const ALLOWED_ORIGINS = new Set(
-  [
-    ...DEFAULT_ALLOWED_ORIGINS,
-    ...(process.env.CORS_ORIGINS || '')
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean)
-  ]
-);
+const CONFIGURED_ORIGINS = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+// Exact-match origins (no wildcard)
+const ALLOWED_ORIGINS = new Set([
+  ...DEFAULT_ALLOWED_ORIGINS,
+  ...CONFIGURED_ORIGINS.filter((origin) => !origin.includes('*'))
+]);
+
+// Wildcard origins (e.g. "https://*.vercel.app") -> RegExp, so Vercel preview
+// URLs (which change every deploy) are matched without reconfiguring CORS_ORIGINS.
+const ALLOWED_ORIGIN_PATTERNS = CONFIGURED_ORIGINS
+  .filter((origin) => origin.includes('*'))
+  .map((origin) => {
+    const escaped = origin.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    return new RegExp(`^${escaped}$`);
+  });
 
 function isOriginAllowed(origin) {
-  return !origin || ALLOWED_ORIGINS.has(origin);
+  if (!origin) return true;
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  return ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
 }
 
 // Test database connection
@@ -190,7 +202,7 @@ app.use(helmet({
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
+  if (origin && isOriginAllowed(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
